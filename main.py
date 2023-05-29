@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
 
-NEW_TRIP, NAME_TRIP, SELECT_TRIP, NEW_ROUTE, NAME_ROUTE, SELECT_ROUTE, ADD_ATTRACTION = range(7)
+NEW_TRIP, NAME_TRIP, SELECT_TRIP, NEW_ROUTE, NAME_ROUTE, SELECT_ROUTE, ADD_ATTRACTION, SHARE_TRIP = range(8)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the conversation and asks the user if they want to start new trip."""
@@ -50,7 +50,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 "Here are a list of your trips:\n" + 
                 content_string + "\n\n" +
                 "Which trip do you want to select?",
-                reply_markup=InlineKeyboardMarkup([markup_buttons]),
+                reply_markup=InlineKeyboardMarkup([markup_buttons, [InlineKeyboardButton("Create new trip", callback_data='create#0')]]),
                 parse_mode="Markdown"
             )
 
@@ -91,10 +91,19 @@ async def select_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         await query.edit_message_text(
             text="Here are a list of your trips:\n" + content_string 
                 + "\n\nWhich trip do you want to select?",
-            reply_markup=InlineKeyboardMarkup([markup_buttons]),
+            reply_markup=InlineKeyboardMarkup([markup_buttons, [InlineKeyboardButton("Create new trip", callback_data='create#0')]]),
             parse_mode='markdown'
         )
         return SELECT_TRIP
+    elif command == "create":
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="What shall we call your new trip?",
+            reply_markup=ReplyKeyboardRemove()
+        )
+
+        return NAME_TRIP
+
 async def new_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if (update.message and update.message.text == "Yes"):
         await update.message.reply_text(
@@ -155,7 +164,7 @@ async def new_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             text="Here are a list of your routes:\n" + 
             content_string + "\n\n" +
             "Which route do you want to select?",
-            reply_markup=InlineKeyboardMarkup([markup_buttons]),
+            reply_markup=InlineKeyboardMarkup([markup_buttons, [InlineKeyboardButton("Create new route", callback_data='create#0')]]),
             parse_mode="Markdown"
         )
 
@@ -171,14 +180,32 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         route_id = int(query.data.split('#')[1])
         data, count = supabase.table('route').select("*").eq('id', route_id).execute()
         context.user_data["current_route"] = data[1][0]['id']
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text="{} has been selected as the current route!\n".format(data[1][0]['name'])
-        )
-        return SELECT_ROUTE
+        route_index = context.user_data.get("current_routes", {}).get(data[1][0]['id'], 0)
+        location_data, count = supabase.table('route_has_location').select("location_id").match({ 'route_id': data[1][0]['id'], 'index': route_index }).execute()
+        
+        if "current_routes" not in context.user_data:
+            context.user_data["current_routes"] = {}
+        context.user_data["current_routes"][data[1][0]['id']] = 0 # {rout_id: location_index}
+        context.user_data["current_route_id"] = data[1][0]['id']
+        
+        if len(location_data[1]) == 0:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text= "Great! Let's start by adding our first attraction to {}\n".format(data[1][0]['name']) +
+                    "Simple reply by sending an inline location."
+            )
+            return ADD_ATTRACTION
+
+        else:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="{} has been selected as the current route!\n\n".format(data[1][0]['name']) + 
+                "Great! You are currently at {}, you can add more locations by sending me an inline location\n".format(data[1][0])
+            )
+            return ADD_ATTRACTION
 
     elif command == "page":
-        trip_id = update.user_data.get("current_trip", -1)
+        trip_id = context.user_data.get("current_trip", -1)
         if trip_id == -1:
             return -1
         page = int(query.data.split('#')[1])
@@ -197,12 +224,22 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             markup_buttons.insert(0, InlineKeyboardButton("<<", callback_data='page#{}'.format(page - 1)))
 
         await query.edit_message_text(
-            text="here are a list of your trips:\n" + content_string 
-                + "\n\nwhich trip do you want to select?",
-            reply_markup=InlineKeyboardMarkup([markup_buttons]),
-            parse_mode='markdown'
+            text="Here are a list of your trips:\n" + content_string 
+                + "\n\nWhich trip do you want to select?",
+            reply_markup=InlineKeyboardMarkup([markup_buttons, [InlineKeyboardButton("Create new route", callback_data='create#0')]]),
+            parse_mode='Markdown'
         )
         return SELECT_ROUTE
+    elif command == "create":
+        print("HELLOOOO")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="What shall we call your new route?",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return NAME_ROUTE
+
+
 
 async def name_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if (update.message and update.message.text):
@@ -270,66 +307,29 @@ async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.info("Chat of id %s did not add a new attraction", update.message.chat_id)
         return ADD_ATTRACTION
 
-async def follow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Shows users their own trips and trips shared to them, selecting a trip will start the following mode."""
-    reply_keyboard =[["Yes", "No"]]
-
-    if update.message is None:
+async def share_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    command = "/share_trip"
+    if (update.message and update.message.text.startswith(command)):
+        usernames = update.message.text[len(command) + 1:].split(" ")
+        chat_id = update.message.chat_id
+        trip_id = context.user_data["current_trip"]
+            
+        logger.info("Chat of id %s shared trip of id %s with %s", chat_id, trip_id, ", ".join(usernames))
+        
+        for user in usernames:
+            data, count = supabase.table('shared_trips').insert({"trip_id": trip_id, "user_id": user}).execute()
+            logger.info(f"Shared trip with {user} added to db: {data}")
+        
+        await update.message.reply_text(
+            "Shared trip of id {} with {}!\n\n".format(trip_id, ", ".join(usernames)),
+            reply_markup=ReplyKeyboardRemove()
+        )
         return ConversationHandler.END
-    
-    chat_id = update.message.chat_id
-    user_id = update.message.from_user.id
-    # my trips
-    data, count = supabase.table('trip').select("*", count="exact").eq('user_id', chat_id).range(0, 5).execute()
-    # shared trips
-    data2, count2 = supabase.table('shared_trips').select("*", count="exact").eq('user_id', user_id).range(0, 5).execute()
-    data = data[1]
-    data2 = data2[1]
-
-    if len(data) == 0 and len(data2) == 0:
-        await update.message.reply_text(
-            "Hello! I am WanderBuddy, here to help you with all your travel needs!\n"
-            "Send /cancel to stop talking to me.\n\n"
-            " You currently do not have any trip to follow. Do you want to start a new trip?",
-            reply_markup=ReplyKeyboardMarkup(
-                reply_keyboard, one_time_keyboard=True
-            ),
-        )
-        return NEW_TRIP
-    else:
-        content_string = '\n'.join(['{}. {}'.format(index + 1, trip['name']) for index, trip in enumerate(data)])
-        content_string2 = '\n'.join(['{}. {}'.format(index + 1, trip['name']) for index, trip in enumerate(data2)])
-
-        markup_buttons_data = [
-            InlineKeyboardButton(str(index + 1), callback_data='select#{}'.format(data[index]['id']))
-            for index in range(len(data))
-        ]
-        markup_buttons_data2 = [
-            InlineKeyboardButton(str(index + 1), callback_data='select#{}'.format(data2[index]['id']))
-            for index in range(len(data2))
-        ]
-
-        if count[1] > 5:
-            markup_buttons_data.append(InlineKeyboardButton(">>", callback_data='page#{}'.format(1)))
-
-        if count2[0] > 5:
-            markup_buttons_data2.append(InlineKeyboardButton(">>", callback_data='page#{}'.format(1)))
-
-        await update.message.reply_text(
-            "Welcome back to WanderBuddy\n" +
-            "Send /cancel to stop talking to me.\n\n" +
-            "Here are a list of your trips:\n" + 
-            content_string + "\n\n" +
-            "Here are a list of your shared trips:\n" +
-            content_string2 + "\n\n" +
-            "Which trip do you want to follow?",
-            reply_markup=InlineKeyboardMarkup([markup_buttons_data, markup_buttons_data2]),
-            parse_mode="Markdown"
-        )
-
-        # TODO: replace with follow trip function
-        return SELECT_TRIP
-
+        
+    elif (update.message is not None):
+        await update.message.reply_text("Sorry! I can't read those username(s), please try again!\n")
+        return ConversationHandler.END
+    return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels and ends the conversation"""
@@ -359,18 +359,20 @@ def main():
         states={
             NEW_TRIP:[MessageHandler(filters.Regex("^(Yes|No)$"), new_trip)],
             NAME_TRIP:[MessageHandler(filters.TEXT, name_trip)],
-            SELECT_TRIP:[CallbackQueryHandler(select_trip, pattern='^(page|select)#')],
+            SELECT_TRIP:[CallbackQueryHandler(select_trip, pattern='^(page|select|create)#')],
             NEW_ROUTE:[MessageHandler(filters.Regex("^(Yes|No)$"), new_route)],
             NAME_ROUTE:[MessageHandler(filters.TEXT, name_route)],
-            SELECT_ROUTE:[CallbackQueryHandler(select_route, pattern='^(page|select)#')],
+            SELECT_ROUTE:[CallbackQueryHandler(select_route, pattern='^(page|select|create)#')],
             ADD_ATTRACTION:[MessageHandler(filters.VENUE, add_attraction)]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
+    share_trip_handler = CommandHandler("share_trip", share_trip)
     image_handler = MessageHandler(filters.PHOTO, image)
     
     application.add_handler(conv_handler)
+    application.add_handler(share_trip_handler)
     application.add_handler(unknown_handler)
     application.add_handler(image_handler)
     
