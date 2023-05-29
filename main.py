@@ -307,6 +307,71 @@ async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.info("Chat of id %s did not add a new attraction", update.message.chat_id)
         return ADD_ATTRACTION
 
+async def follow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Shows users their own trips and trips shared to them, selecting a trip will start the following mode."""
+    reply_keyboard =[["Yes", "No"]]
+
+    if update.message is None:
+        return ConversationHandler.END
+    
+    chat_id = update.message.chat_id
+    user_id = update.message.from_user.username
+    logger.info(f"User Id: {user_id}")
+    # my trips
+    data, count = supabase.table('trip').select("*", count="exact").eq('user_id', chat_id).range(0, 5).execute()
+    # shared trips
+    data2, count2 = supabase.table('shared_trips').select("*", count="exact").eq('user_id', user_id.lower()).range(0, 5).execute()
+    data = data[1]
+    data2 = data2[1]
+
+    if len(data) == 0 and len(data2) == 0:
+        await update.message.reply_text(
+            "Hello! I am WanderBuddy, here to help you with all your travel needs!\n"
+            "Send /cancel to stop talking to me.\n\n"
+            " You currently do not have any trip to follow. Do you want to start a new trip?",
+            reply_markup=ReplyKeyboardMarkup(
+                reply_keyboard, one_time_keyboard=True
+            ),
+        )
+        return NEW_TRIP
+    else:
+        content_string = '\n'.join(['{}. {}'.format(index + 1, trip['name']) for index, trip in enumerate(data)])
+        content_string2 = '\n'.join(['{}. {}'.format(index + 1, trip['name']) for index, trip in enumerate(data2)])
+
+        logger.info(f"My trips: {data}")
+        logger.info(f"Shared trips: {data2}")
+
+
+        markup_buttons_data = [
+            InlineKeyboardButton(str(index + 1), callback_data='select#{}'.format(data[index]['id']))
+            for index in range(len(data))
+        ]
+        markup_buttons_data2 = [
+            InlineKeyboardButton(str(index + 1), callback_data='select#{}'.format(data2[index]['id']))
+            for index in range(len(data2))
+        ]
+
+        if count[1] > 5:
+            markup_buttons_data.append(InlineKeyboardButton(">>", callback_data='page#{}'.format(1)))
+
+        if count2[1] > 5:
+            markup_buttons_data2.append(InlineKeyboardButton(">>", callback_data='page#{}'.format(1)))
+
+        await update.message.reply_text(
+            "Welcome back to WanderBuddy\n" +
+            "Send /cancel to stop talking to me.\n\n" +
+            "Here are a list of your trips:\n" + 
+            content_string + "\n\n" +
+            "Here are a list of your shared trips:\n" +
+            content_string2 + "\n\n" +
+            "Which trip do you want to follow?",
+            reply_markup=InlineKeyboardMarkup([markup_buttons_data, markup_buttons_data2]),
+            parse_mode="Markdown"
+        )
+
+        # TODO: replace with follow trip function
+        return SELECT_TRIP
+
 async def share_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     command = "/share_trip"
     if (update.message and update.message.text.startswith(command)):
@@ -369,13 +434,15 @@ def main():
     )
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     share_trip_handler = CommandHandler("share_trip", share_trip)
+    follow_trip_handler = CommandHandler("follow", follow)
     image_handler = MessageHandler(filters.PHOTO, image)
     
     application.add_handler(conv_handler)
     application.add_handler(share_trip_handler)
+    application.add_handler(follow_trip_handler)
     application.add_handler(unknown_handler)
     application.add_handler(image_handler)
-    
+
     application.run_polling()
 
 if __name__ == "__main__":
