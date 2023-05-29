@@ -5,6 +5,7 @@ from telegram import Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import (ApplicationBuilder, ContextTypes, CommandHandler,
                           ConversationHandler, InlineQueryHandler,
                           MessageHandler, filters)
+from db import supabase
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -94,11 +95,14 @@ async def name_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if (update.message and update.message.venue):
-        chat_id = update.message.chat_id
         venue = update.message.venue
+        chat_id = update.message.chat_id
+        logger.info("Chat of id %s added a new attraction %s", chat_id, venue.title)
+        latitude, longitude = venue.location.latitude, venue.location.longitude
         
-        logger.info("Chat of id %s added a new attraction", chat_id)
-        
+        # insert into db (trigger prevents duplicate insertions)
+        data, count = supabase.table('location').insert({"name": venue.title, "lat": latitude, "lng": longitude})
+
         await update.message.reply_text(
             "Added {} to your trip!".format(venue.title),
             reply_markup=ReplyKeyboardRemove(),
@@ -122,6 +126,13 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't understand that command.")
+    
+async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    file = update.message.photo[-1].file_id
+    obj = context.bot.get_file(file)
+    obj.download()
+    
+    update.message.reply_text("Image received")
     
 def main():
     load_dotenv()
