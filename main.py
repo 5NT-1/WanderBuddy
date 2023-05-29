@@ -50,8 +50,8 @@ async def name_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         logger.info("Chat of id %s started a new trip named %s", chat_id, update.message.text)
         reply_keyboard =[["Yes", "No"]]
 
-        # TODO: Add trip to DB
-        
+        data, count = supabase.table('trip').insert({"name": update.message.text, "user_id": chat_id}).execute()
+        context.user_data["current_trip"] = data[1][0]['id']
         await update.message.reply_text(
             "Wow! {} sounds like fun! Shall we start by creating a new route?\n".format(update.message.text) + 
             "Each Trip composes of multiple routes. A route is a single adventure of multiple attractions that are near each other!\n\n"
@@ -81,6 +81,8 @@ async def name_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         logger.info("Chat of id %s started a new route named %s", chat_id, update.message.text)
 
         # TODO: Add route to DB
+        current_trip = context.user_data.get("current_trip")
+        data, count = supabase.table('route').insert({ "trip": current_trip, "name": update.message.text }).execute()
         await update.message.reply_text(
             "Great! Let's start by adding our first attraction to {}\n".format(update.message.text) +
             "Simple reply by sending an inline location."
@@ -105,13 +107,14 @@ async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         print(data)
 
         await update.message.reply_text(
-            "Added {} to your trip!".format(venue.title),
+            "Added {} to your trip!\n\n".format(venue.title) +
+            "You can continue adding other attractions to your route, just send me the venues!",
             reply_markup=ReplyKeyboardRemove(),
         )
-        return ConversationHandler.END
+        return ADD_ATTRACTION
     else:
         logger.info("Chat of id %s did not add a new attraction", update.message.chat_id)
-        return ConversationHandler.END
+        return ADD_ATTRACTION
 
 
 
