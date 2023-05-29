@@ -5,7 +5,6 @@ from telegram import Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, 
 from telegram.ext import (ApplicationBuilder, ContextTypes, CommandHandler,
                           ConversationHandler, InlineQueryHandler,
                           MessageHandler, filters)
-from store import create_tables, db
 from db import image_handler, supabase
 
 logging.basicConfig(
