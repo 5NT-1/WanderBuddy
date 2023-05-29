@@ -3,6 +3,7 @@ import logging
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
+from store import create_tables, db
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -14,6 +15,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     load_dotenv()
+
+    # Setup Database
+    create_tables()
+    db.connect() # alternatively consider connecting to db with each request
     
     BOT_TOKEN = os.environ.get("BOT_TOKEN")
     application = ApplicationBuilder().token(BOT_TOKEN or '').build()
