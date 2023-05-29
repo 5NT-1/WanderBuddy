@@ -50,7 +50,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 "Here are a list of your trips:\n" + 
                 content_string + "\n\n" +
                 "Which trip do you want to select?",
-                reply_markup=InlineKeyboardMarkup([markup_buttons]),
+                reply_markup=InlineKeyboardMarkup([markup_buttons, [InlineKeyboardButton("Create new trip", callback_data='create#0')]]),
                 parse_mode="Markdown"
             )
 
@@ -91,10 +91,19 @@ async def select_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         await query.edit_message_text(
             text="Here are a list of your trips:\n" + content_string 
                 + "\n\nWhich trip do you want to select?",
-            reply_markup=InlineKeyboardMarkup([markup_buttons]),
+            reply_markup=InlineKeyboardMarkup([markup_buttons, [InlineKeyboardButton("Create new trip", callback_data='create#0')]]),
             parse_mode='markdown'
         )
         return SELECT_TRIP
+    elif command == "create":
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="What shall we call your new trip?",
+            reply_markup=ReplyKeyboardRemove()
+        )
+
+        return NAME_TRIP
+
 async def new_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if (update.message and update.message.text == "Yes"):
         await update.message.reply_text(
@@ -155,7 +164,7 @@ async def new_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             text="Here are a list of your routes:\n" + 
             content_string + "\n\n" +
             "Which route do you want to select?",
-            reply_markup=InlineKeyboardMarkup([markup_buttons]),
+            reply_markup=InlineKeyboardMarkup([markup_buttons, [InlineKeyboardButton("Create new route", callback_data='create#0')]]),
             parse_mode="Markdown"
         )
 
@@ -175,7 +184,7 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             chat_id=chat_id,
             text="{} has been selected as the current route!\n".format(data[1][0]['name'])
         )
-        return SELECT_ROUTE
+        return ADD_ATTRACTION
 
     elif command == "page":
         trip_id = update.user_data.get("current_trip", -1)
@@ -199,10 +208,20 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await query.edit_message_text(
             text="here are a list of your trips:\n" + content_string 
                 + "\n\nwhich trip do you want to select?",
-            reply_markup=InlineKeyboardMarkup([markup_buttons]),
+            reply_markup=InlineKeyboardMarkup([markup_buttons, [InlineKeyboardButton("Create new route", callback_data='create#0')]]),
             parse_mode='markdown'
         )
         return SELECT_ROUTE
+    elif command == "create":
+        print("HELLOOOO")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="What shall we call your new route?",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return NAME_ROUTE
+
+
 
 async def name_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if (update.message and update.message.text):
@@ -299,10 +318,10 @@ def main():
         states={
             NEW_TRIP:[MessageHandler(filters.Regex("^(Yes|No)$"), new_trip)],
             NAME_TRIP:[MessageHandler(filters.TEXT, name_trip)],
-            SELECT_TRIP:[CallbackQueryHandler(select_trip, pattern='^(page|select)#')],
+            SELECT_TRIP:[CallbackQueryHandler(select_trip, pattern='^(page|select|create)#')],
             NEW_ROUTE:[MessageHandler(filters.Regex("^(Yes|No)$"), new_route)],
             NAME_ROUTE:[MessageHandler(filters.TEXT, name_route)],
-            SELECT_ROUTE:[CallbackQueryHandler(select_route, pattern='^(page|select)#')],
+            SELECT_ROUTE:[CallbackQueryHandler(select_route, pattern='^(page|select|create)#')],
             ADD_ATTRACTION:[MessageHandler(filters.VENUE, add_attraction)]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
