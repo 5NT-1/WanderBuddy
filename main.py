@@ -179,12 +179,19 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         data, count = supabase.table('route').select("*").eq('id', route_id).execute()
         context.user_data["current_route"] = data[1][0]['id']
         route_index = context.user_data.get("current_routes", {}).get(data[1][0]['id'], 0)
-        location_data, count = supabase.table('route_has_location').select("location_id").match({ 'route_id': data[1][0]['id'], 'index': route_index }).execute()
-        
+        location_data, count = supabase.table('route_has_location').select("location_id").order('index').match({ 'route_id': data[1][0]['id'] }).execute()
+       
         if "current_routes" not in context.user_data:
             context.user_data["current_routes"] = {}
         context.user_data["current_routes"][data[1][0]['id']] = 0 # {rout_id: location_index}
         context.user_data["current_route_id"] = data[1][0]['id']
+        
+        content = []
+        for location in location_data[1]:
+            location, count = supabase.table('location').select('name').match({ "id": location["location_id"] }).execute()
+            content.append(location[1][0]['name'])
+        content_string = ' -> '.join(content)
+            
         
         if len(location_data[1]) == 0:
             await context.bot.send_message(
@@ -198,7 +205,9 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             await context.bot.send_message(
                 chat_id=chat_id,
                 text="{} has been selected as the current route!\n\n".format(data[1][0]['name']) + 
-                "Great! You are currently at {}, you can add more locations by sending me an inline location\n".format(data[1][0]) +
+                "Great! You are currently at {}, here's your journey so far.\n\n".format(data[1][0]['name']) +
+                content_string + "\n\n"
+                "You can add more locations by sending me an inline location\n"
                 "Use the command /done whenever you are done."
             )
             return ADD_ATTRACTION
@@ -285,8 +294,8 @@ async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             location_id = data[1][0]['id']
             logger.info(f"Location id {location_id}")
         
-        context.user_data["current_routes"][context.user_data["current_route_id"]] += 1
         new_route_loc ={'route_id': context.user_data["current_route_id"], "location_id": location_id, "index": context.user_data["current_routes"][context.user_data["current_route_id"]]} 
+        context.user_data["current_routes"][context.user_data["current_route_id"]] += 1
 
         try:
             data, count = supabase.table('route_has_location').insert(new_route_loc).execute()
