@@ -233,10 +233,10 @@ def main():
         entry_points=[CommandHandler("start", start)],
         states={
             NEW_TRIP:[MessageHandler(filters.Regex("^(Yes|No)$"), new_trip)],
-            NAME_TRIP:[MessageHandler(filters.ALL, name_trip)],
+            NAME_TRIP:[MessageHandler(filters.TEXT, name_trip)],
             SELECT_TRIP:[CallbackQueryHandler(select_trip, pattern='^(page|select)#')],
             NEW_ROUTE:[MessageHandler(filters.Regex("^(Yes|No)$"), new_route)],
-            NAME_ROUTE:[MessageHandler(filters.ALL, name_route)],
+            NAME_ROUTE:[MessageHandler(filters.TEXT, name_route)],
             ADD_ATTRACTION:[MessageHandler(filters.VENUE, add_attraction)]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
