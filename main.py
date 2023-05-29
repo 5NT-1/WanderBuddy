@@ -5,7 +5,6 @@ from telegram import Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import (ApplicationBuilder, ContextTypes, CommandHandler,
                           ConversationHandler, InlineQueryHandler,
                           MessageHandler, filters)
-from store import create_tables, db
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -13,7 +12,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-NEW_TRIP, LOCATION_COUNT, ATTRACTION = range(3)
+NEW_TRIP, NAME_TRIP, NEW_ROUTE, NAME_ROUTE, ADD_ATTRACTION = range(5)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the conversation and asks the user if they want to start new trip."""
@@ -33,41 +32,82 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def new_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if (update.message and update.message.text == "Yes"):
+        await update.message.reply_text(
+            "What shall we call your new trip?",
+            reply_markup=ReplyKeyboardRemove()
+        )
+
+        return NAME_TRIP
+        
+    elif (update.message is not None):
+        await update.message.reply_text("Sure! Let me know again with /start whenever you change your mind.\n")
+        return ConversationHandler.END
+
+async def name_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if (update.message):
         chat_id = update.message.chat_id
-        logger.info("Chat of id %s started a new trip", chat_id)
+        logger.info("Chat of id %s started a new trip named %s", chat_id, update.message.text)
+        reply_keyboard =[["Yes", "No"]]
+
+        # TODO: Add trip to DB
         
         await update.message.reply_text(
-            "Sure! How many locations will you be going to?\n"
-            "Please enter a number.\n\n"
-            "For example, if you're flying off to Spain, and then Portugal, please enter '2'.",
-            reply_markup=ReplyKeyboardRemove(),
+            "Wow! {} sounds like fun! Shall we start by creating a new route?\n".format(update.message.text) + 
+            "Each Trip composes of multiple routes. A route is a single adventure of multiple attractions that are near each other!\n\n"
+            "For example, a route in Singapore might go from Singapore Flyer, to the Merlion, to the Explanade!.",
+            reply_markup=ReplyKeyboardMarkup(
+                reply_keyboard, one_time_keyboard=True
+            ),
         )
-        return LOCATION_COUNT
+        return NEW_ROUTE
+
+async def new_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if (update.message and update.message.text == "Yes"):
+        await update.message.reply_text(
+            "What shall we call your new route?",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return NAME_ROUTE
+        
+    elif (update.message is not None):
+        await update.message.reply_text("Sure! Let me know again whenever you change your mind.\n")
+        return NEW_ROUTE
+    return ConversationHandler.END
+
+async def name_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if (update.message and update.message.text):
+        chat_id = update.message.chat_id
+        logger.info("Chat of id %s started a new route named %s", chat_id, update.message.text)
+
+        # TODO: Add route to DB
+        await update.message.reply_text(
+            "Great! Let's start by adding our first attraction to {}\n".format(update.message.text) +
+            "Simple reply by sending an inline location."
+        )
+        return ADD_ATTRACTION
     else:
-        return ConversationHandler.END
+        await update.message.reply_text(
+            "Sorry! I can't read that name, please try again!",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return NAME_ROUTE
 
 async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if (update.message and update.message.venue):
+        chat_id = update.message.chat_id
         venue = update.message.venue
-        logger.info("Chat of id %s added a new attraction", venue)
+        
+        logger.info("Chat of id %s added a new attraction", chat_id)
         
         await update.message.reply_text(
             "Added {} to your trip!".format(venue.title),
             reply_markup=ReplyKeyboardRemove(),
         )
-        return ATTRACTION
+        return ConversationHandler.END
     else:
         logger.info("Chat of id %s did not add a new attraction", update.message.chat_id)
         return ConversationHandler.END
 
-async def location_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Asks the user for locations"""
-    await context.bot.send_message(chat_id=update.effective_chat.id or '', text="Wow! {} locations!".format(update.message.text)) 
-    
-    return ATTRACTION
-
-    # TODO: Continue the conversation by getting all the locations and inserting to DB
-    # return ConversationHandler.END
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -87,8 +127,6 @@ def main():
     load_dotenv()
 
     # Setup Database
-    create_tables()
-    db.connect() # alternatively consider connecting to db with each request
     
     BOT_TOKEN = os.environ.get("BOT_TOKEN")
     application = ApplicationBuilder().token(BOT_TOKEN or '').build()
@@ -97,8 +135,10 @@ def main():
         entry_points=[CommandHandler("start", start)],
         states={
             NEW_TRIP:[MessageHandler(filters.Regex("^(Yes|No)$"), new_trip)],
-            LOCATION_COUNT:[MessageHandler(filters.Regex(r"^\d+$"), location_count)],
-            ATTRACTION:[MessageHandler(filters.VENUE, add_attraction)]
+            NAME_TRIP:[MessageHandler(filters.ALL, name_trip)],
+            NEW_ROUTE:[MessageHandler(filters.Regex("^(Yes|No)$"), new_route)],
+            NAME_ROUTE:[MessageHandler(filters.ALL, name_route)],
+            ADD_ATTRACTION:[MessageHandler(filters.VENUE, add_attraction)]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
