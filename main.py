@@ -187,7 +187,7 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ADD_ATTRACTION
 
     elif command == "page":
-        trip_id = update.user_data.get("current_trip", -1)
+        trip_id = context.user_data.get("current_trip", -1)
         if trip_id == -1:
             return -1
         page = int(query.data.split('#')[1])
