@@ -6,6 +6,7 @@ from telegram.ext import (ApplicationBuilder, ContextTypes, CommandHandler,
                           ConversationHandler, InlineQueryHandler,
                           MessageHandler, filters)
 from store import create_tables, db
+from db import supabase
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -53,6 +54,9 @@ async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.info("Chat of id %s added a new attraction %s", chat_id, venue.title)
         latitude, longitude = venue.location.latitude, venue.location.longitude
         
+        # insert into db (trigger prevents duplicate insertions)
+        data, count = supabase.table('location').insert({"name": venue.title, "lat": venue.latitude, "lng": venue.longitude})
+
         await update.message.reply_text(
             "Added {} to your trip!".format(venue.title),
             reply_markup=ReplyKeyboardRemove(),
