@@ -49,7 +49,9 @@ async def new_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if (update.message and update.message.venue):
         venue = update.message.venue
-        logger.info("Chat of id %s added a new attraction", venue)
+        chat_id = update.message.chat_id
+        logger.info("Chat of id %s added a new attraction %s", chat_id, venue.title)
+        latitude, longitude = venue.location.latitude, venue.location.longitude
         
         await update.message.reply_text(
             "Added {} to your trip!".format(venue.title),
