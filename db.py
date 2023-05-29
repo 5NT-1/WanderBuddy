@@ -43,7 +43,3 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     os.remove(temp_file_name)
     
     await update.message.reply_text("Image received")
-
-# with open(source, 'rb+') as f:
-#   res = supabase.storage.from_('photos').upload("ab.jpg", os.path.abspath(source))
-#   print(res.json())
