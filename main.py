@@ -2,7 +2,9 @@ import os
 import logging
 from dotenv import load_dotenv
 from telegram import Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, ConversationHandler, MessageHandler, filters
+from telegram.ext import (ApplicationBuilder, ContextTypes, CommandHandler,
+                          ConversationHandler, InlineQueryHandler,
+                          MessageHandler, filters)
 from store import create_tables, db
 
 logging.basicConfig(
@@ -11,7 +13,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-NEW_TRIP, LOCATION_COUNT = range(2)
+NEW_TRIP, LOCATION_COUNT, ATTRACTION = range(3)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the conversation and asks the user if they want to start new trip."""
@@ -44,12 +46,28 @@ async def new_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     else:
         return ConversationHandler.END
 
+async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if (update.message and update.message.venue):
+        venue = update.message.venue
+        logger.info("Chat of id %s added a new attraction", venue)
+        
+        await update.message.reply_text(
+            "Added {} to your trip!".format(venue.title),
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return ATTRACTION
+    else:
+        logger.info("Chat of id %s did not add a new attraction", update.message.chat_id)
+        return ConversationHandler.END
+
 async def location_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Asks the user for locations"""
     await context.bot.send_message(chat_id=update.effective_chat.id or '', text="Wow! {} locations!".format(update.message.text)) 
+    
+    return ATTRACTION
 
     # TODO: Continue the conversation by getting all the locations and inserting to DB
-    return ConversationHandler.END
+    # return ConversationHandler.END
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -79,7 +97,8 @@ def main():
         entry_points=[CommandHandler("start", start)],
         states={
             NEW_TRIP:[MessageHandler(filters.Regex("^(Yes|No)$"), new_trip)],
-            LOCATION_COUNT:[MessageHandler(filters.Regex(r"^\d+$"), location_count)]
+            LOCATION_COUNT:[MessageHandler(filters.Regex(r"^\d+$"), location_count)],
+            ATTRACTION:[MessageHandler(filters.VENUE, add_attraction)]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
