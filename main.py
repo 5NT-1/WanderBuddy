@@ -101,7 +101,8 @@ async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         latitude, longitude = venue.location.latitude, venue.location.longitude
         
         # insert into db (trigger prevents duplicate insertions)
-        data, count = supabase.table('location').insert({"name": venue.title, "lat": latitude, "lng": longitude})
+        data, count = supabase.table('location').insert({"name": venue.title, "lat": latitude, "lng": longitude}).execute()
+        print(data)
 
         await update.message.reply_text(
             "Added {} to your trip!".format(venue.title),
