@@ -275,18 +275,11 @@ async def share_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if (update.message and update.message.text.startswith(command)):
         usernames = update.message.text[len(command) + 1:].split(" ")
         chat_id = update.message.chat_id
-        try:
-            trip_id = supabase.table('trip').select('id').match({
-                'id': context.user_data["current_trip"],
-                'user_id': chat_id
-            }).execute().data[0]['id']
-        except:
-            logger.warning("Chat of id %s tried to share a trip that does not exist", chat_id)
             
-        logger.info("Chat of id %s shared trip of id %s with %s", chat_id, trip_id, ", ".join(usernames))
+        logger.info("Chat of id %s shared trip of id %s with %s", chat_id, context.user_data["current_trip"], ", ".join(usernames))
         
         for user in usernames:
-            data, count = supabase.table('shared_trips').insert({"trip_id": trip_id, "user_id": user}).execute()
+            data, count = supabase.table('shared_trips').insert({"trip_id": context.user_data["current_trip"], "user_id": user}).execute()
             logger.info(f"Shared trip with {user} added to db: {data}")
         
         await update.message.reply_text(
