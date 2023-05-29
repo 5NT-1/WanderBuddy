@@ -180,11 +180,29 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         route_id = int(query.data.split('#')[1])
         data, count = supabase.table('route').select("*").eq('id', route_id).execute()
         context.user_data["current_route"] = data[1][0]['id']
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text="{} has been selected as the current route!\n".format(data[1][0]['name'])
-        )
-        return ADD_ATTRACTION
+        route_index = context.user_data.get("current_routes", {}).get(data[1][0]['id'], 0)
+        location_data, count = supabase.table('route_has_location').select("location_id").match({ 'route_id': data[1][0]['id'], 'index': route_index }).execute()
+        
+        if "current_routes" not in context.user_data:
+            context.user_data["current_routes"] = {}
+        context.user_data["current_routes"][data[1][0]['id']] = 0 # {rout_id: location_index}
+        context.user_data["current_route_id"] = data[1][0]['id']
+        
+        if len(location_data[1]) == 0:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text= "Great! Let's start by adding our first attraction to {}\n".format(data[1][0]['name']) +
+                    "Simple reply by sending an inline location."
+            )
+            return ADD_ATTRACTION
+
+        else:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="{} has been selected as the current route!\n\n".format(data[1][0]['name']) + 
+                "Great! You are currently at {}, you can add more locations by sending me an inline location\n".format(data[1][0])
+            )
+            return ADD_ATTRACTION
 
     elif command == "page":
         trip_id = context.user_data.get("current_trip", -1)
@@ -206,10 +224,10 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             markup_buttons.insert(0, InlineKeyboardButton("<<", callback_data='page#{}'.format(page - 1)))
 
         await query.edit_message_text(
-            text="here are a list of your trips:\n" + content_string 
-                + "\n\nwhich trip do you want to select?",
+            text="Here are a list of your trips:\n" + content_string 
+                + "\n\nWhich trip do you want to select?",
             reply_markup=InlineKeyboardMarkup([markup_buttons, [InlineKeyboardButton("Create new route", callback_data='create#0')]]),
-            parse_mode='markdown'
+            parse_mode='Markdown'
         )
         return SELECT_ROUTE
     elif command == "create":
