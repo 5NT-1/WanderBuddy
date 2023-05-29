@@ -30,6 +30,7 @@ create table posts (
 create table route (
   id bigint primary key generated always as identity,
   created_at timestamp default now(),
+  name text,
   trip bigint references trip (id)
 );
 
