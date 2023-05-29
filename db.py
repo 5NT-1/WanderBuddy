@@ -37,7 +37,7 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Updates photos table of location
     supabase.table('photos').insert({
         "location_id": data[1][0]["location_id"],
-        "url": unique_id
+        "url": convert_uuid_to_url(unique_id)
     }).execute()
 
     os.remove(temp_file_name)
