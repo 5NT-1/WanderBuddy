@@ -1,10 +1,11 @@
 import os
 import logging
 from dotenv import load_dotenv
-from telegram import InlineKeyboardMarkup, Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, InlineKeyboardButton
+from telegram import InlineKeyboardMarkup,  ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, InlineKeyboardButton
 from telegram.ext import (ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler,
                           ConversationHandler,
                           MessageHandler, filters)
+from telegram.constants import ParseMode
 from warnings import filterwarnings
 from telegram.warnings import PTBUserWarning
 from db import image, supabase
@@ -179,7 +180,7 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         data, count = supabase.table('route').select("*").eq('id', route_id).execute()
         context.user_data["current_route"] = data[1][0]['id']
         route_index = context.user_data.get("current_routes", {}).get(data[1][0]['id'], 0)
-        location_data, count = supabase.table('route_has_location').select("location_id").order('index').match({ 'route_id': data[1][0]['id'] }).execute()
+        location_data, count = supabase.table('route_has_location').select("location_id", "index").order('index').match({ 'route_id': data[1][0]['id'] }).execute()
        
         if "current_routes" not in context.user_data:
             context.user_data["current_routes"] = {}
@@ -188,8 +189,11 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         
         content = []
         for location in location_data[1]:
-            location, count = supabase.table('location').select('name').match({ "id": location["location_id"] }).execute()
-            content.append(location[1][0]['name'])
+            location_info, count = supabase.table('location').select('name').match({ "id": location["location_id"] }).execute()
+            name = location_info[1][0]['name']
+            if location['index'] == context.user_data["current_routes"][context.user_data["current_route_id"]]:
+                name = "*{}*".format(name)
+            content.append(name)
         content_string = ' -> '.join(content)
             
         
@@ -208,7 +212,8 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 "Great! You are currently at {}, here's your journey so far.\n\n".format(data[1][0]['name']) +
                 content_string + "\n\n"
                 "You can add more locations by sending me an inline location\n"
-                "Use the command /done whenever you are done."
+                "Use the command /done whenever you are done.",
+                parse_mode=ParseMode.MARKDOWN
             )
             return ADD_ATTRACTION
 
