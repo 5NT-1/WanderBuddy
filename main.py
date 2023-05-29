@@ -5,8 +5,7 @@ from telegram import InlineKeyboardMarkup, Message, ReplyKeyboardMarkup, ReplyKe
 from telegram.ext import (ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler,
                           ConversationHandler,
                           MessageHandler, filters)
-from telegram_bot_pagination import InlineKeyboardPaginator
-from db import image_handler, supabase
+from db import image, supabase
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -197,13 +196,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't understand that command.")
     
-async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    file = update.message.photo[-1].file_id
-    obj = context.bot.get_file(file)
-    obj.download()
-    
-    update.message.reply_text("Image received")
-    
 def main():
     load_dotenv()
 
@@ -225,11 +217,11 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
-    some_handler = MessageHandler(filters.PHOTO, image_handler)
+    image_handler = MessageHandler(filters.PHOTO, image)
     
     application.add_handler(conv_handler)
     application.add_handler(unknown_handler)
-    application.add_handler(some_handler)
+    application.add_handler(image_handler)
     
     application.run_polling()
 

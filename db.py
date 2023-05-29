@@ -12,7 +12,7 @@ supabase: Client = create_client(url, key)
 
 source = "images/hero.jpg"
 
-async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file: str = update.message.photo[-1].file_id
     obj: File = await context.bot.get_file(file)
     file_name = "name.jpg"
