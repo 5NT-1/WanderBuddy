@@ -5,7 +5,6 @@ from telegram import Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, 
 from telegram.ext import (ApplicationBuilder, ContextTypes, CommandHandler,
                           ConversationHandler, InlineQueryHandler,
                           MessageHandler, filters)
-from store import create_tables, db
 from db import image_handler, supabase
 
 logging.basicConfig(
@@ -84,6 +83,11 @@ async def name_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # TODO: Add route to DB
         current_trip = context.user_data.get("current_trip")
         data, count = supabase.table('route').insert({ "trip": current_trip, "name": update.message.text }).execute()
+        if "current_routes" not in context.user_data:
+            context.user_data["current_routes"] = {}
+        context.user_data["current_routes"][data[1][0]['id']] = 0 # {rout_id: location_index}
+        context.user_data["current_route_id"] = data[1][0]['id']
+
         await update.message.reply_text(
             "Great! Let's start by adding our first attraction to {}\n".format(update.message.text) +
             "Simple reply by sending an inline location."
@@ -104,8 +108,28 @@ async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         latitude, longitude = venue.location.latitude, venue.location.longitude
         
         # insert into db (trigger prevents duplicate insertions)
-        data, count = supabase.table('location').insert({"name": venue.title, "lat": latitude, "lng": longitude}).execute()
-        print(data)
+        new_location = {"name": venue.title, "lat": latitude, "lng": longitude}
+        location_id = -1
+        try:
+            data, count = supabase.table('location').insert(new_location).execute()
+            location_id = data[1][0]['id']
+            logger.info(f"Location id {location_id}")
+        except: 
+            logger.info(f"Duplicate location detected")
+            data, count = supabase.table('location').select("*").match(new_location).execute()
+            location_id = data[1][0]['id']
+            logger.info(f"Location id {location_id}")
+        
+        context.user_data["current_routes"][context.user_data["current_route_id"]] += 1
+        new_route_loc ={'route_id': context.user_data["current_route_id"], "location_id": location_id, "index": context.user_data["current_routes"][context.user_data["current_route_id"]]} 
+
+        try:
+            data, count = supabase.table('route_has_location').insert(new_route_loc).execute()
+            logger.info(f"Route location added to db: {data}")
+        except:
+            logger.info(f"Duplicate route location detected")
+            data, count = supabase.table('route_has_location').select("*").match(new_route_loc).execute()
+            logger.info(f"Route location added to db: {data}")
 
         await update.message.reply_text(
             "Added {} to your trip!\n\n".format(venue.title) +
