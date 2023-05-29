@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 filterwarnings(action="ignore", message=r".*CallbackQueryHandler", category=PTBUserWarning)
 
-NEW_TRIP, NAME_TRIP, SELECT_TRIP, NEW_ROUTE, NAME_ROUTE, SELECT_ROUTE, ADD_ATTRACTION = range(7)
+NEW_TRIP, NAME_TRIP, SELECT_TRIP, NEW_ROUTE, NAME_ROUTE, SELECT_ROUTE, ADD_ATTRACTION, SHARE_TRIP = range(8)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the conversation and asks the user if they want to start new trip."""
@@ -289,7 +289,29 @@ async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.info("Chat of id %s did not add a new attraction", update.message.chat_id)
         return ADD_ATTRACTION
 
-
+async def share_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    command = "/share_trip"
+    if (update.message and update.message.text.startswith(command)):
+        usernames = update.message.text[len(command) + 1:].split(" ")
+        chat_id = update.message.chat_id
+        trip_id = context.user_data["current_trip"]
+            
+        logger.info("Chat of id %s shared trip of id %s with %s", chat_id, trip_id, ", ".join(usernames))
+        
+        for user in usernames:
+            data, count = supabase.table('shared_trips').insert({"trip_id": trip_id, "user_id": user}).execute()
+            logger.info(f"Shared trip with {user} added to db: {data}")
+        
+        await update.message.reply_text(
+            "Shared trip of id {} with {}!\n\n".format(trip_id, ", ".join(usernames)),
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return ConversationHandler.END
+        
+    elif (update.message is not None):
+        await update.message.reply_text("Sorry! I can't read those username(s), please try again!\n")
+        return ConversationHandler.END
+    return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels and ends the conversation"""
@@ -327,9 +349,11 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
+    share_trip_handler = CommandHandler("share_trip", share_trip)
     image_handler = MessageHandler(filters.PHOTO, image)
     
     application.add_handler(conv_handler)
+    application.add_handler(share_trip_handler)
     application.add_handler(unknown_handler)
     application.add_handler(image_handler)
     
