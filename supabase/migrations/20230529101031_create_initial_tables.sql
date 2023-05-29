@@ -41,3 +41,8 @@ create table route_has_location (
   "index" bigint not null,
   PRIMARY KEY(route_id, location_id, "index")
 );
+
+insert into storage.buckets
+  (id, name)
+values
+  ('photos', 'photos');
