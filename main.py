@@ -320,10 +320,11 @@ async def follow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # my trips
     data, count = supabase.table('trip').select("*", count="exact").eq('user_id', chat_id).range(0, 5).execute()
     # shared trips
-    data2, count2 = supabase.table('shared_trips').select("*", count="exact").eq('user_id', user_id.lower()).range(0, 5).execute()
+    data2, count2 = supabase.table('shared_trips').select("*, trip(name)", count="exact").eq('user_id', user_id.lower()).range(0, 5).execute()
     data = data[1]
     data2 = data2[1]
 
+    logger.info(f"data 2: {data2}")
     if len(data) == 0 and len(data2) == 0:
         await update.message.reply_text(
             "Hello! I am WanderBuddy, here to help you with all your travel needs!\n"
@@ -336,7 +337,7 @@ async def follow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return NEW_TRIP
     else:
         content_string = '\n'.join(['{}. {}'.format(index + 1, trip['name']) for index, trip in enumerate(data)])
-        content_string2 = '\n'.join(['{}. {}'.format(index + 1, trip['name']) for index, trip in enumerate(data2)])
+        content_string2 = '\n'.join(['{}. {}'.format(index + 1, trip['trip']['name']) for index, trip in enumerate(data2)])
 
         logger.info(f"My trips: {data}")
         logger.info(f"Shared trips: {data2}")
@@ -347,7 +348,7 @@ async def follow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             for index in range(len(data))
         ]
         markup_buttons_data2 = [
-            InlineKeyboardButton(str(index + 1), callback_data='select#{}'.format(data2[index]['id']))
+            InlineKeyboardButton(str(index + 1), callback_data='select#{}'.format(data2[index]['trip_id']))
             for index in range(len(data2))
         ]
 
