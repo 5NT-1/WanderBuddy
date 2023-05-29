@@ -88,6 +88,12 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't understand that command.")
+async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    file = update.message.photo[-1].file_id
+    obj = context.bot.get_file(file)
+    obj.download()
+    
+    update.message.reply_text("Image received")
     
 def main():
     load_dotenv()
