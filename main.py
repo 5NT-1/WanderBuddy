@@ -312,13 +312,21 @@ async def share_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if (update.message and update.message.text.startswith(command)):
         usernames = update.message.text[len(command) + 1:].split(" ")
         chat_id = update.message.chat_id
-        trip_id = context.user_data["current_trip"]
+        try:
+            trip_id = context.user_data["current_trip"]
+        except:
+            await update.message.reply_text("Sorry! You don't have a trip to share yet!")
+            return ConversationHandler.END
             
         logger.info("Chat of id %s shared trip of id %s with %s", chat_id, trip_id, ", ".join(usernames))
         
-        for user in usernames:
-            data, count = supabase.table('shared_trips').insert({"trip_id": trip_id, "user_id": user}).execute()
-            logger.info(f"Shared trip with {user} added to db: {data}")
+        for username in usernames:
+            username = username.lower()
+            try:
+                data, count = supabase.table('shared_trips').insert({"trip_id": trip_id, "user_id": username}).execute()
+                logger.info(f"Shared trip with {username} added to db: {data}")
+            except:
+                logger.warning(f"Duplicate shared trip with {username} detected")
         
         await update.message.reply_text(
             "Shared trip of id {} with {}!\n\n".format(trip_id, ", ".join(usernames)),
