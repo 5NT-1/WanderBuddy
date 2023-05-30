@@ -312,7 +312,7 @@ async def add_attraction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         await update.message.reply_text(
             "Added {} to your trip!\n\n".format(venue.title) +
-            "You can continue adding other attractions to your route, just send me the venues!" +
+            "You can continue adding other attractions to your route, just send me the venues! " +
             "Use the command /done whenever you are done.",
             reply_markup=ReplyKeyboardRemove(),
         )
