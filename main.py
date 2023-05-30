@@ -350,9 +350,9 @@ async def follow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message is None:
         return ConversationHandler.END
     
-    chat_id = update.message.chat_id
     user_id = update.message.from_user.username
     logger.info(f"User Id: {user_id}")
+
     # shared trips
     data, count = supabase.table('shared_trips').select("*, trip(name)", count="exact").eq('user_id', user_id.lower()).range(0, 5).execute()
     data = data[1]
@@ -444,7 +444,7 @@ async def cancel_follow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     """Cancels and ends the conversation"""
     chat_id = update.effective_chat.id or ''
     await update.message.reply_text(
-        "Cancelling follow commadn! Talk to me again with /start",
+        "Cancelling follow command! Talk to me again with /start",
         reply_markup=ReplyKeyboardRemove()
     )
     return ConversationHandler.END
