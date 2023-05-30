@@ -480,7 +480,8 @@ async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, comman
                 )
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text="Your next destination is at {}, here's your journey ahead.\n\n".format(loc['name']) +
+                    text="If you like to see images that other users took at this location, please visit {}/?location={}\n".format(os.environ.get("FRONTEND_URL"), loc["id"])+
+                        "Your next destination is at {}, here's your journey ahead.\n\n".format(loc['name']) +
                         content_string + "\n\n",
                     parse_mode='markdown'
                 )
@@ -519,7 +520,8 @@ async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, comman
                 )
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text="Your previous destination is at {}, here's your journey ahead.\n\n".format(loc['name']) +
+                    text="If you like to see images that other users took at this location, please visit {}/?location={}\n".format(os.environ.get("FRONTEND_URL"), loc["id"])+
+                    "Your previous destination is at {}, here's your journey ahead.\n\n".format(loc['name']) +
                         content_string + "\n\n",
                     parse_mode='markdown'
                 )
