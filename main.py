@@ -540,10 +540,8 @@ def main():
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     share_trip_handler = CommandHandler("share_trip", share_trip)
     follow_trip_handler = CommandHandler("follow", follow)
-    image_handler = MessageHandler(filters.PHOTO, image)
-    next_handler = CommandHandler("next", lambda update, context: follow_trip(update, context, 'next'))
-    prev_handler = CommandHandler("prev", lambda update, context: follow_trip(update, context, 'prev'))
-
+    image_handler = MessageHandler(filters.Document.IMAGE | filters.PHOTO, image)
+    
     application.add_handler(conv_handler)
     application.add_handler(share_trip_handler)
     application.add_handler(follow_trip_handler)

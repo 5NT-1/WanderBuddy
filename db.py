@@ -23,9 +23,13 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "current_route_id" not in context.user_data or context.user_data["current_route_id"] < 0:
         await update.message.reply_text("Sorry! Please select a route before adding a picture!")
         return
-    file: str = update.message.photo[-1].file_id
+    # Try to find photo or document that was posted
+    try:
+        file: str = update.message.photo[-1].file_id
+    except:
+        file: str = update.message.document.file_id
     obj: File = await context.bot.get_file(file)
-    temp_file_name = "temp.jpg"
+    temp_file_name = uuid.uuid1()
     unique_id = str(uuid.uuid4())
     await obj.download_to_drive(temp_file_name)
     res = supabase.storage.from_('photos').upload(unique_id, temp_file_name)
@@ -39,6 +43,7 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "location_id": data[1][0]["location_id"],
         "url": convert_uuid_to_url(unique_id)
     }).execute()
+    logger.info(f"Added image to location_id - {data[1][0]['location_id']}")
 
     os.remove(temp_file_name)
     
