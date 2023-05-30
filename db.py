@@ -29,7 +29,7 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         file: str = update.message.document.file_id
     obj: File = await context.bot.get_file(file)
-    temp_file_name = "temp.jpg"
+    temp_file_name = uuid.uuid1()
     unique_id = str(uuid.uuid4())
     await obj.download_to_drive(temp_file_name)
     res = supabase.storage.from_('photos').upload(unique_id, temp_file_name)
