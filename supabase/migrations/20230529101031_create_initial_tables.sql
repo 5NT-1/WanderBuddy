@@ -43,11 +43,11 @@ create table route_has_location (
 );
 
 create table shared_trips (
-  trip_id bigint,
+  trip_id bigint references trip (id),
   user_id text,
-  created_at timestamp default now()
+  created_at timestamp default now(),
   PRIMARY KEY(trip_id, user_id)
-)
+);
 
 insert into storage.buckets
   (id, name)
