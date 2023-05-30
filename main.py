@@ -191,7 +191,7 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         content = []
         curr_loc = None
         for location in location_data[1]:
-            location_info, count = supabase.table('location').select('name').match({ "id": location["location_id"] }).execute()
+            location_info, count = supabase.table('location').select('name', 'lat', 'lng').match({ "id": location["location_id"] }).execute()
             name = location_info[1][0]['name']
             if location['index'] == context.user_data["current_routes"][context.user_data["current_route_id"]]:
                 curr_loc = location_info[1][0]
@@ -209,16 +209,15 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             return ADD_ATTRACTION
 
         else:
-            await context.bot.send_venue(
+            await context.bot.send_location(
                 chat_id=update.effective_chat.id,
-                title=curr_loc['name'],
                 latitude=curr_loc['lat'],
                 longitude=curr_loc['lng'],
             )
             await context.bot.send_message(
                 chat_id=chat_id,
                 text="{} has been selected as the current route!\n\n".format(data[1][0]['name']) + 
-                "Great! Your next destination is at {}, here's your journey ahead.\n\n".format(curr_loc) +
+                "Great! Your next destination is at {}, here's your journey ahead.\n\n".format(curr_loc['name']) +
                 content_string + "\n\n"
                 "You can add more locations by sending me an inline location\n"
                 "Use the command /done whenever you are done.",
@@ -479,18 +478,17 @@ async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, comman
                         name = "*{}*".format(name)
                     content.append(name)
                 content_string = ' -> '.join(content)
-                await context.bot.send_venue(
-                    chat_id=update.effective_chat.id,
-                    title=loc['name'],
-                    latitude=loc['lat'],
-                    longitude=loc['lng'],
-                )
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
                     text="If you like to see images that other users took at this location, please visit {}/?location={}\n".format(os.environ.get("FRONTEND_URL"), loc["id"])+
                         "Your next destination is at {}, here's your journey ahead.\n\n".format(loc['name']) +
                         content_string + "\n\n",
                     parse_mode='markdown'
+                )
+                await context.bot.send_location(
+                    chat_id=update.effective_chat.id,
+                    latitude=loc['lat'],
+                    longitude=loc['lng'],
                 )
             else:
                 await context.bot.send_message(
@@ -520,9 +518,8 @@ async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, comman
                         name = "*{}*".format(name)
                     content.append(name)
                 content_string = ' -> '.join(content)
-                await context.bot.send_venue(
+                await context.bot.send_location(
                     chat_id=update.effective_chat.id,
-                    title=loc['name'],
                     latitude=loc['lat'],
                     longitude=loc['lng'],
                 )
