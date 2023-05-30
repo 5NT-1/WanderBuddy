@@ -189,10 +189,12 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         context.user_data["current_route_id"] = data[1][0]['id']
         
         content = []
+        curr_loc = None
         for location in location_data[1]:
             location_info, count = supabase.table('location').select('name').match({ "id": location["location_id"] }).execute()
             name = location_info[1][0]['name']
             if location['index'] == context.user_data["current_routes"][context.user_data["current_route_id"]]:
+                curr_loc = name
                 name = "*{}*".format(name)
             content.append(name)
         content_string = ' -> '.join(content)
@@ -210,7 +212,7 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             await context.bot.send_message(
                 chat_id=chat_id,
                 text="{} has been selected as the current route!\n\n".format(data[1][0]['name']) + 
-                "Great! You are currently at {}, here's your journey so far.\n\n".format(data[1][0]['name']) +
+                "Great! Your next destination is at {}, here's your journey ahead.\n\n".format(curr_loc) +
                 content_string + "\n\n"
                 "You can add more locations by sending me an inline location\n"
                 "Use the command /done whenever you are done.",
@@ -452,18 +454,35 @@ async def cancel_follow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str) -> int:
     if command == "next":
         try:
-            next_location, count = supabase.table('route_has_location').select("*").eq('route_id', context.user_data["current_route_id"]).eq('index', context.user_data["current_routes"][context.user_data["current_route_id"]]).execute()
-
+            curr_idx = context.user_data["current_routes"][context.user_data["current_route_id"]]
+            next_location, count = supabase.table('route_has_location').select("*").eq('route_id', context.user_data["current_route_id"]).eq('index', curr_idx + 1).execute()
+            
+            location_data, count = supabase.table('route_has_location').select("location_id", "index").order('index').match({ 'route_id': context.user_data["current_route_id"] }).execute()\
+            
             if next_location[1]:
                 next_location = next_location[1][0]['location_id']
                 loc, count = supabase.table('location').select("*").eq('id', next_location).execute()
                 loc = loc[1][0]
                 # update index
                 context.user_data["current_routes"][context.user_data["current_route_id"]] += 1
+                content = []
+                for location in location_data[1]:
+                    location_info, count = supabase.table('location').select('name').match({ "id": location["location_id"] }).execute()
+                    name = location_info[1][0]['name']
+                    if location['index'] == context.user_data["current_routes"][context.user_data["current_route_id"]]:
+                        name = "*{}*".format(name)
+                    content.append(name)
+                content_string = ' -> '.join(content)
                 await context.bot.send_location(
                     chat_id=update.effective_chat.id,
                     latitude=loc['lat'],
                     longitude=loc['lng']
+                )
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="Your next destination is at {}, here's your journey ahead.\n\n".format(loc['name']) +
+                        content_string + "\n\n",
+                    parse_mode='markdown'
                 )
             else:
                 await context.bot.send_message(
@@ -474,7 +493,10 @@ async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, comman
             logger.error(f"Error while getting next location: {e}")
     elif command == "prev":
         try:
-            prev_location, count = supabase.table('route_has_location').select("*").eq('route_id', context.user_data["current_route_id"]).eq('index', context.user_data["current_routes"][context.user_data["current_route_id"]]).execute()
+            curr_idx = context.user_data["current_routes"][context.user_data["current_route_id"]]
+            prev_location, count = supabase.table('route_has_location').select("*").eq('route_id', context.user_data["current_route_id"]).eq('index', curr_idx - 1).execute()
+            
+            location_data, count = supabase.table('route_has_location').select("location_id", "index").order('index').match({ 'route_id': context.user_data["current_route_id"] }).execute()\
 
             if prev_location[1]:
                 prev_location = prev_location[1][0]['location_id']
@@ -482,10 +504,24 @@ async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, comman
                 loc = loc[1][0]
                 # update index
                 context.user_data["current_routes"][context.user_data["current_route_id"]] -= 1
+                content = []
+                for location in location_data[1]:
+                    location_info, count = supabase.table('location').select('name').match({ "id": location["location_id"] }).execute()
+                    name = location_info[1][0]['name']
+                    if location['index'] == context.user_data["current_routes"][context.user_data["current_route_id"]]:
+                        name = "*{}*".format(name)
+                    content.append(name)
+                content_string = ' -> '.join(content)
                 await context.bot.send_location(
                     chat_id=update.effective_chat.id,
                     latitude=loc['lat'],
                     longitude=loc['lng']
+                )
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="Your previous destination is at {}, here's your journey ahead.\n\n".format(loc['name']) +
+                        content_string + "\n\n",
+                    parse_mode='markdown'
                 )
             else:
                 await context.bot.send_message(
@@ -545,7 +581,8 @@ async def done(update:Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if route_id != -1:
         data, count = supabase.table('route').select("*").eq('id', route_id).execute()
         route_name = data[1][0]['name']
-    location_count = context.user_data["current_routes"][context.user_data["current_route_id"]]
+    _, location_count = supabase.table('route_has_location').select("*", count="exact").eq('route_id', route_id).execute()
+    location_count = location_count[1]
     data, count = supabase.table('route').select("*", count="exact").eq('trip', context.user_data.get("current_trip", 0)).execute()
     data = data[1]
     print(data)
