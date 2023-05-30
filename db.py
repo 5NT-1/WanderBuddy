@@ -38,6 +38,19 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "route_id": context.user_data["current_route_id"], 
         "index": context.user_data["current_routes"][context.user_data["current_route_id"]]
         }).execute()
+    # Handle out of range index
+    if data[1] == []:
+        index = context.user_data["current_routes"][context.user_data["current_route_id"]]
+
+        if index < 0:
+            index += 1
+        else:
+            index -= 1
+        data, count = supabase.table('route_has_location').select("*").match({
+            "route_id": context.user_data["current_route_id"],
+            "index": index
+        }).execute()
+
     # Updates photos table of location
     supabase.table('photos').insert({
         "location_id": data[1][0]["location_id"],
