@@ -29,10 +29,9 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         file: str = update.message.document.file_id
     obj: File = await context.bot.get_file(file)
-    temp_file_name = str(uuid.uuid1())
     unique_id = str(uuid.uuid4())
-    await obj.download_to_drive(temp_file_name)
-    res = supabase.storage.from_('photos').upload(unique_id, temp_file_name)
+    f = bytes(await obj.download_as_bytearray())
+    supabase.storage.from_('photos').upload(unique_id, f)
     # Gets the location_id of the current location in the route
     data, count = supabase.table('route_has_location').select("*").match({
         "route_id": context.user_data["current_route_id"], 
@@ -58,6 +57,4 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }).execute()
     logger.info(f"Added image to location_id - {data[1][0]['location_id']}")
 
-    os.remove(temp_file_name)
-    
     await update.message.reply_text("Image received")
