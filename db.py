@@ -43,6 +43,7 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "location_id": data[1][0]["location_id"],
         "url": convert_uuid_to_url(unique_id)
     }).execute()
+    logger.info(f"Added image to location_id - {data[1][0]['location_id']}")
 
     os.remove(temp_file_name)
     
