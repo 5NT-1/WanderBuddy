@@ -385,20 +385,24 @@ async def follow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
 
         # TODO: replace with follow trip function
-        return SELECT_TRIP
+        return SELECT_ROUTE
 
 
 async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str) -> int:
     if command == "next":
         try:
-            next_location = supabse.table('route_has_location').select("*").eq('route_id', context.user_data["current_route_id"]).eq('index', context.user_data["current_routes"][context.user_data["current_route_id"]]).execute()
-            if next_location:
+            next_location, count = supabase.table('route_has_location').select("*").eq('route_id', context.user_data["current_route_id"]).eq('index', context.user_data["current_routes"][context.user_data["current_route_id"]]).execute()
+
+            if next_location[1]:
+                next_location = next_location[1][0]['location_id']
+                loc, count = supabase.table('location').select("*").eq('id', next_location).execute()
+                loc = loc[1][0]
                 # update index
                 context.user_data["current_routes"][context.user_data["current_route_id"]] += 1
                 await context.bot.send_location(
                     chat_id=update.effective_chat.id,
-                    latitude=next_location.latitude,
-                    longitude=next_location.longitude
+                    latitude=loc['lat'],
+                    longitude=loc['lng']
                 )
             else:
                 await context.bot.send_message(
@@ -409,15 +413,18 @@ async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, comman
             logger.error(f"Error while getting next location: {e}")
     elif command == "prev":
         try:
-            prev_location = supabase.table('route_has_location').select("*").eq('route_id', context.user_data["current_route_id"]).eq('index', context.user_data["current_routes"][context.user_data["current_route_id"]]).execute()
+            prev_location, count = supabase.table('route_has_location').select("*").eq('route_id', context.user_data["current_route_id"]).eq('index', context.user_data["current_routes"][context.user_data["current_route_id"]]).execute()
 
-            if prev_location:
+            if prev_location[1]:
+                prev_location = prev_location[1][0]['location_id']
+                loc, count = supabase.table('location').select("*").eq('id', prev_location).execute()
+                loc = loc[1][0]
                 # update index
                 context.user_data["current_routes"][context.user_data["current_route_id"]] -= 1
                 await context.bot.send_location(
                     chat_id=update.effective_chat.id,
-                    latitude=prev_location.latitude,
-                    longitude=prev_location.longitude
+                    latitude=loc['lat'],
+                    longitude=loc['lng']
                 )
             else:
                 await context.bot.send_message(
