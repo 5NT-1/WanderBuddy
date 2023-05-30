@@ -29,7 +29,7 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         file: str = update.message.document.file_id
     obj: File = await context.bot.get_file(file)
-    temp_file_name = uuid.uuid1()
+    temp_file_name = str(uuid.uuid1())
     unique_id = str(uuid.uuid4())
     await obj.download_to_drive(temp_file_name)
     res = supabase.storage.from_('photos').upload(unique_id, temp_file_name)
@@ -38,6 +38,19 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "route_id": context.user_data["current_route_id"], 
         "index": context.user_data["current_routes"][context.user_data["current_route_id"]]
         }).execute()
+    # Handle out of range index
+    if data[1] == []:
+        index = context.user_data["current_routes"][context.user_data["current_route_id"]]
+
+        if index < 0:
+            index += 1
+        else:
+            index -= 1
+        data, count = supabase.table('route_has_location').select("*").match({
+            "route_id": context.user_data["current_route_id"],
+            "index": index
+        }).execute()
+
     # Updates photos table of location
     supabase.table('photos').insert({
         "location_id": data[1][0]["location_id"],
