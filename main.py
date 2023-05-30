@@ -486,7 +486,7 @@ def main():
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     share_trip_handler = CommandHandler("share_trip", share_trip)
     follow_trip_handler = CommandHandler("follow", follow)
-    image_handler = MessageHandler(filters.PHOTO, image)
+    image_handler = MessageHandler(filters.Document.IMAGE | filters.PHOTO, image)
     
     application.add_handler(conv_handler)
     application.add_handler(share_trip_handler)

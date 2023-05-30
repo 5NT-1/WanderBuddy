@@ -23,7 +23,11 @@ async def image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "current_route_id" not in context.user_data or context.user_data["current_route_id"] < 0:
         await update.message.reply_text("Sorry! Please select a route before adding a picture!")
         return
-    file: str = update.message.photo[-1].file_id
+    # Try to find photo or document that was posted
+    try:
+        file: str = update.message.photo[-1].file_id
+    except:
+        file: str = update.message.document.file_id
     obj: File = await context.bot.get_file(file)
     temp_file_name = "temp.jpg"
     unique_id = str(uuid.uuid4())
