@@ -26,6 +26,7 @@ function App() {
           </img>
         );
       })}
+      {images.length === 0 && <span>No images found!</span>}
     </>
   )
 }

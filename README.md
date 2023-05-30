@@ -87,6 +87,12 @@ This is an example of how to list things you need to use the software and how to
   pip --version
   ```
 
+* Verify that supabase is installed
+  ```sh
+  supabase --version
+  ```
+  You may refer to [this link](https://supabase.com/docs/guides/getting-started/local-development) for instructions to install supabase
+
 ### Installation
 
 1. Get a Bot Token from Telegram's @BotFather. You may follow the instructions here ["Obtaining your Bot Token"](https://core.telegram.org/bots/tutorial#obtain-your-bot-token)
@@ -102,16 +108,27 @@ This is an example of how to list things you need to use the software and how to
 4. Make a local copy of environment variables
    ```sh
    cp .env.example .env
+   cp .env.local.example .env.local
    ```
-5. Enter your API in `.env`
+5. Enter your BOT TOKEN, Supabase credentials in `.env` and `.env.local`
    ```sh
    BOT_TOKEN=<BOT_TOKEN_HERE>
+   ...
    ```
+   You will also need the FRONTEND_URL if you're hosting a frontend
 6. Start up a local database
    ```sh
-   docker-compose up -d
+   supabase start
    ```
-   - Alternatively, you may choose to run your own local database and add your credentials to `.env`.
+6. Start up the frontend server 
+   ```sh
+   cd supabase-react && npm run dev
+   ```
+
+6. Start up the telegram-bot
+   ```sh
+   python main.py
+   ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -122,7 +139,15 @@ This is an example of how to list things you need to use the software and how to
 _For more examples, please refer to the [Documentation](https://example.com)_
 
 1. Start a new chat with your Telegram Bot with `/start`.
-2. 
+2. The Bot will prompt you to start a new Trip! 
+3. After adding the name of the trip, the Bot will prompt you to create a new route.
+4. Once the route has been created, you can now start tracking your adventures!
+- You can send a location to mark a new checkpoint in your journey
+- You can send an image to store your memories at the current location
+- Whenever you're ready to move on, you can use the `/next` and `/prev`
+5. After you're done with your journey, feel free to share it with your friends!
+- Use the `/share_trip` [friend's telegram username] to share.
+- Your friend can use the `/follow` command to import it into their own collection!
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
@@ -179,7 +204,6 @@ Project Link: [https://github.com/5NT-1/WanderBuddy](https://github.com/5NT-1/Wa
 * [Other distinguished sponsors](https://lifehack-website.web.app/) for sponsoring the Hackathon
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 
 
 <!-- MARKDOWN LINKS & IMAGES -->
