@@ -389,12 +389,13 @@ async def follow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
 
         # TODO: replace with follow trip function
-        return FOLLOW_TRIP
+        return SELECT_FOLLOW_TRIP
 
 async def select_follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     chat_id = query.message.chat_id
+    user_id = query.message.from_user.username
 
     command = query.data.split('#')[0]
     if command == "select":
