@@ -194,7 +194,7 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             location_info, count = supabase.table('location').select('name').match({ "id": location["location_id"] }).execute()
             name = location_info[1][0]['name']
             if location['index'] == context.user_data["current_routes"][context.user_data["current_route_id"]]:
-                curr_loc = name
+                curr_loc = location_info[1][0]
                 name = "*{}*".format(name)
             content.append(name)
         content_string = ' -> '.join(content)
@@ -209,6 +209,12 @@ async def select_route(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             return ADD_ATTRACTION
 
         else:
+            await context.bot.send_venue(
+                chat_id=update.effective_chat.id,
+                title=curr_loc['name'],
+                latitude=curr_loc['lat'],
+                longitude=curr_loc['lng'],
+            )
             await context.bot.send_message(
                 chat_id=chat_id,
                 text="{} has been selected as the current route!\n\n".format(data[1][0]['name']) + 
@@ -473,10 +479,11 @@ async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, comman
                         name = "*{}*".format(name)
                     content.append(name)
                 content_string = ' -> '.join(content)
-                await context.bot.send_location(
+                await context.bot.send_venue(
                     chat_id=update.effective_chat.id,
+                    title=loc['name'],
                     latitude=loc['lat'],
-                    longitude=loc['lng']
+                    longitude=loc['lng'],
                 )
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
@@ -512,10 +519,11 @@ async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, comman
                         name = "*{}*".format(name)
                     content.append(name)
                 content_string = ' -> '.join(content)
-                await context.bot.send_location(
+                await context.bot.send_venue(
                     chat_id=update.effective_chat.id,
+                    title=loc['name'],
                     latitude=loc['lat'],
-                    longitude=loc['lng']
+                    longitude=loc['lng'],
                 )
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
