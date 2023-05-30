@@ -387,6 +387,55 @@ async def follow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # TODO: replace with follow trip function
         return SELECT_TRIP
 
+
+async def follow_trip(update: Update, context: ContextTypes.DEFAULT_TYPE, command: str) -> int:
+    if command == "next":
+        try:
+            next_location = supabse.table('route_has_location').select("*").eq('route_id', context.user_data["current_route_id"]).eq('index', context.user_data["current_routes"][context.user_data["current_route_id"]]).execute()
+            if next_location:
+                # update index
+                context.user_data["current_routes"][context.user_data["current_route_id"]] += 1
+                await context.bot.send_location(
+                    chat_id=update.effective_chat.id,
+                    latitude=next_location.latitude,
+                    longitude=next_location.longitude
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id, 
+                    text="Sorry, there is no next location."
+                )
+        except Exception as e:
+            logger.error(f"Error while getting next location: {e}")
+    elif command == "prev":
+        try:
+            prev_location = supabase.table('route_has_location').select("*").eq('route_id', context.user_data["current_route_id"]).eq('index', context.user_data["current_routes"][context.user_data["current_route_id"]]).execute()
+
+            if prev_location:
+                # update index
+                context.user_data["current_routes"][context.user_data["current_route_id"]] -= 1
+                await context.bot.send_location(
+                    chat_id=update.effective_chat.id,
+                    latitude=prev_location.latitude,
+                    longitude=prev_location.longitude
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id, 
+                    text="Sorry, there is no previous location."
+                )
+        except Exception as e:
+            logger.error(f"Error while getting previous location: {e}")
+    elif update.message.photo:
+        await image(update, context)
+    else:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, 
+            text="Sorry, I didn't understand that command."
+        )
+    return ConversationHandler.END
+
+
 async def share_trip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     command = "/share_trip"
     if (update.message and update.message.text.startswith(command)):
@@ -492,10 +541,15 @@ def main():
     share_trip_handler = CommandHandler("share_trip", share_trip)
     follow_trip_handler = CommandHandler("follow", follow)
     image_handler = MessageHandler(filters.PHOTO, image)
-    
+    next_handler = CommandHandler("next", lambda update, context: follow_trip(update, context, 'next'))
+    prev_handler = CommandHandler("prev", lambda update, context: follow_trip(update, context, 'prev'))
+
     application.add_handler(conv_handler)
     application.add_handler(share_trip_handler)
     application.add_handler(follow_trip_handler)
+    application.add_handler(next_handler)
+    application.add_handler(prev_handler)
+
     application.add_handler(unknown_handler)
     application.add_handler(image_handler)
 
